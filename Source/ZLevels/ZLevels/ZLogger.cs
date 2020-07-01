@@ -23,7 +23,7 @@ namespace ZLevels
 		{
 			if (ZLogger.DebugEnabled)
 
-				Log.Warning(ZLogger.Prefix + message + "\n" + ((e != null) ? e.ToString() : null), true);
+				Log.Warning(ZLogger.Prefix + message + "\n" + (e?.ToString()), true);
 		}
 
 		public static void Error(string message)
@@ -37,13 +37,22 @@ namespace ZLevels
 		{
 			if (ZLogger.DebugEnabled)
 
-				Log.Error(ZLogger.Prefix + message + "\n" + ((e != null) ? e.ToString() : null), true);
+				Log.Error(ZLogger.Prefix + message + "\n" + (e?.ToString()), true);
 		}
 
 		public static void ErrorOnce(string message, bool test)
 		{
 			if (ZLogger.DebugEnabled)
 			Log.Error(ZLogger.Prefix + message, true);
+		}
+
+		public static void Pause(string reason)
+		{
+			if (ZLogger.DebugEnabled)
+			{
+				Log.Error("Pausing, reason: " + reason, true);
+				Find.TickManager.CurTimeSpeed = TimeSpeed.Paused;
+			}
 		}
 
 		private static readonly bool DebugEnabled = false;

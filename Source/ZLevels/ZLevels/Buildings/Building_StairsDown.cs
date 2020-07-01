@@ -10,21 +10,28 @@ using RimWorld.Planet;
 using Verse;
 using Verse.AI;
 
-
 namespace ZLevels
 {
-    public class Building_StairsDown : Building
+    public class Building_StairsDown : Building, IAttackTarget
     {
         public override void SpawnSetup(Map map, bool respawningAfterLoad)
         {
             base.SpawnSetup(map, respawningAfterLoad);
+            var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
+            if (!ZTracker.stairsDown.ContainsKey(this.Map))
+            {
+                ZTracker.stairsDown[this.Map] = new List<Thing>();
+            }
+            if (!ZTracker.stairsDown[this.Map].Contains(this))
+            {
+                ZTracker.stairsDown[this.Map].Add(this);
+            }
             if (!respawningAfterLoad)
             {
                 if (this.Position.GetTerrain(this.Map) == ZLevelsDefOf.ZL_OutsideTerrain)
                 {
                     this.Map.terrainGrid.SetTerrain(this.Position, ZLevelsDefOf.ZL_OutsideTerrainTwo);
                 }
-                var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
                 Map mapBelow = ZTracker.GetLowerLevel(this.Map.Tile, this.Map);
                 if (mapBelow != null && mapBelow != this.Map && this.def.defName == "FC_StairsDown")
                 {
@@ -52,7 +59,7 @@ namespace ZLevels
                 }
                 else if (mapBelow == this.Map)
                 {
-                    ZLogger.Error("There was a mismatch of ZLevels indices. This is a serious error, report it to the mod developers");
+                    Log.Error("There was a mismatch of ZLevels indices. This is a serious error, report it to the mod developers");
                     foreach (var map2 in ZTracker.GetAllMaps(this.Map.Tile))
                     {
                         ZLogger.Message("Index: " + ZTracker.GetMapInfo(map2));
@@ -63,6 +70,11 @@ namespace ZLevels
 
         public override void Destroy(DestroyMode mode = DestroyMode.Vanish)
         {
+            var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
+            if (ZTracker.stairsDown[this.Map].Contains(this))
+            {
+                ZTracker.stairsDown[this.Map].Remove(this);
+            }
             if (this.Position.GetTerrain(this.Map) == ZLevelsDefOf.ZL_OutsideTerrainTwo)
             {
                 this.Map.terrainGrid.SetTerrain(this.Position, ZLevelsDefOf.ZL_OutsideTerrain);
@@ -70,7 +82,12 @@ namespace ZLevels
             base.Destroy(mode);
         }
 
-        [SyncMethod(SyncContext.None)]
+        public void GiveJob(Pawn pawn, Thing stairs)
+        {
+            Job job = JobMaker.MakeJob(ZLevelsDefOf.ZL_GoToStairs, stairs);
+            pawn.jobs.StartJob(job, JobCondition.InterruptForced);
+        }
+
         public override IEnumerable<FloatMenuOption> GetFloatMenuOptions(Pawn selPawn)
         {
             var text = "GoDown".Translate();
@@ -83,9 +100,7 @@ namespace ZLevels
             }
             var opt2 = new FloatMenuOption(text, () =>
             {
-                ZLogger.Message("Test");
-                Job job = JobMaker.MakeJob(ZLevelsDefOf.ZL_GoToStairs, this);
-                selPawn.jobs.StartJob(job, JobCondition.InterruptForced);
+                GiveJob(selPawn, this);
             }, MenuOptionPriority.Default, null, this);
             yield return opt2;
         }
@@ -105,7 +120,7 @@ namespace ZLevels
                         {
                             if (this.visitedPawns == null) this.visitedPawns = new HashSet<string>();
                             var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
-
+            
                             if (!this.visitedPawns.Contains(pawn.ThingID))
                             {
                                 Job goToStairs = JobMaker.MakeJob(ZLevelsDefOf.ZL_GoToStairs, this);
@@ -143,6 +158,34 @@ namespace ZLevels
         public bool shouldSpawnStairsBelow = true;
         public InfestationData infestationData;
         public bool visited = false;
+
+        Thing IAttackTarget.Thing
+        {
+            get
+            {
+                return this;
+            }
+        }
+        public LocalTargetInfo TargetCurrentlyAimingAt
+        {
+            get
+            {
+                return LocalTargetInfo.Invalid;
+            }
+        }
+
+        public float TargetPriorityFactor
+        {
+            get
+            {
+                return 0f;
+            }
+        }
+
+        public bool ThreatDisabled(IAttackTargetSearcher disabledFor)
+        {
+            return true;
+        }
     }
 }
 

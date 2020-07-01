@@ -46,11 +46,12 @@ namespace ZLevels
                                                    map.Biome.CommonalityOfAnimal(def) / def.wildGroupSize.Average);
                         if (pawnKindDef == null)
                         {
-                            ZLogger.Error("No spawnable animals right now.");
+                            Log.Error("No spawnable animals right now.");
                             result = false;
                         }
                         else
                         {
+                            ZLogger.Message("Spawning animal: " + pawnKindDef + " in biome: " + map.Biome);
                             int randomInRange = pawnKindDef.wildGroupSize.RandomInRange;
                             int radius = Mathf.CeilToInt(Mathf.Sqrt((float)pawnKindDef.wildGroupSize.max));
                             if (map.Parent is MapParent_ZLevel && !loc.Walkable(map))
@@ -91,8 +92,10 @@ namespace ZLevels
                                 && x.GetStatValue(StatDefOf.Nutrition, true) > 0.1f);
                         if (foods != null && foods.Count() > 0)
                         {
-                            List<PawnKindDef> infestators = new List<PawnKindDef>();
-                            infestators.Add(ZLevelsDefOf.ZL_UndegroundBiome.AllWildAnimals.RandomElement());
+                            List<PawnKindDef> infestators = new List<PawnKindDef>
+                            {
+                                ZLevelsDefOf.ZL_UndegroundBiome.AllWildAnimals.RandomElement()
+                            };
                             var infestationPlace = foods.RandomElement().Position;
                             var infestationData = new InfestationData(infestators, parms.points, infestationPlace);
                             if (comp.ActiveInfestations == null)

@@ -76,7 +76,6 @@ namespace ZLevels
             }
         }
 
-
         [HarmonyPatch(typeof(Designator_Build))]
         [HarmonyPatch("ProcessInput")]
         public class ProcessInput_Patch
@@ -103,16 +102,25 @@ namespace ZLevels
 
             public static bool IfInResourceCounter(bool __result, Event ev, Designator_Build instance, ThingDef thingDef2)
             {
-                BuildableDef entDef = Traverse.Create(instance).Field("entDef").GetValue<BuildableDef>();
-                ThingDef thingDef = entDef as ThingDef;
-                if (thingDef2.IsStuff && thingDef2.stuffProps.CanMake(thingDef) 
-                    && instance.Map.resourceCounter.AllCountedAmounts[thingDef2] > 0)
+                if (DebugSettings.godMode)
                 {
                     return true;
                 }
+                BuildableDef entDef = Traverse.Create(instance).Field("entDef").GetValue<BuildableDef>();
+                ThingDef thingDef = entDef as ThingDef;
+                if (thingDef2.IsStuff && thingDef2.stuffProps.CanMake(thingDef))
+                {
+                    var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
+                    foreach (var map in ZTracker.GetAllMaps(instance.Map.Tile))
+                    {
+                        if (map.listerThings.ThingsOfDef(thingDef2).Count > 0)
+                        {
+                            return true;
+                        }
+                    }
+                }
                 return false;
             }
-
         }
     }
 }

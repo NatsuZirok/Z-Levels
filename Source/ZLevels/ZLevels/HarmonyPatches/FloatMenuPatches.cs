@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Reflection.Emit;
 using HarmonyLib;
 using RimWorld;
 using RimWorld.Planet;
@@ -88,7 +89,7 @@ namespace ZLevels
                     if (floatMenuOption != null)
                     {
                         opts.Remove(floatMenuOption);
-                        opts.Add(AddHumanlikeOrders_Patch.addRescueOption(pawn, pawn2));
+                        opts.Add(AddHumanlikeOrders_Patch.AddRescueOption(pawn, pawn2));
                     }
                     TaggedString toCheck2 = "Capture".Translate(pawn2.LabelCap, pawn2);
                     FloatMenuOption floatMenuOption2 = opts.FirstOrDefault((FloatMenuOption x) => x.Label.Contains
@@ -96,12 +97,12 @@ namespace ZLevels
                     if (floatMenuOption2 != null)
                     {
                         opts.Remove(floatMenuOption2);
-                        opts.Add(AddHumanlikeOrders_Patch.addCaptureOption(pawn, pawn2));
+                        opts.Add(AddHumanlikeOrders_Patch.AddCaptureOption(pawn, pawn2));
                     }
                 }
             }
 
-            public static FloatMenuOption addCaptureOption(Pawn pawn, Pawn victim)
+            public static FloatMenuOption AddCaptureOption(Pawn pawn, Pawn victim)
             {
                 var floatOption = FloatMenuUtility.DecoratePrioritizedTask(new FloatMenuOption("Capture".Translate
                     (victim.LabelCap, victim), delegate ()
@@ -118,7 +119,7 @@ namespace ZLevels
                             var oldPosition1 = pawn.Position;
                             var oldPosition2 = victim.Position;
                             var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
-                            foreach (var otherMap in ZTracker.GetAllMaps(pawn.Map.Tile))
+                            foreach (var otherMap in ZTracker.GetAllMapsInClosestOrder(pawn.Map))
                             {
                                 if (oldMap != otherMap)
                                 {
@@ -185,26 +186,26 @@ namespace ZLevels
                                     }
                                 }
                             }
-                            if (building_Bed == null)
-                            {
-                                Messages.Message("CannotCapture".Translate() + ": " + "NoPrisonerBed".Translate(), victim, MessageTypeDefOf.RejectInput, false);
-                                return;
-                            }
-                            Job job = JobMaker.MakeJob(JobDefOf.Capture, victim, building_Bed);
-                            job.count = 1;
-                            pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                            PlayerKnowledgeDatabase.KnowledgeDemonstrated(ConceptDefOf.Capturing, KnowledgeAmount.Total);
-                            if (victim.Faction != null && victim.Faction != Faction.OfPlayer && !victim.Faction.def.hidden && !victim.Faction.HostileTo(Faction.OfPlayer) && !victim.IsPrisonerOfColony)
-                            {
-                                Messages.Message("MessageCapturingWillAngerFaction".Translate(victim.Named("PAWN"))
-                                    .AdjustedFor(victim, "PAWN", true), victim, MessageTypeDefOf.CautionInput, false);
-                            }
+                        }
+                        if (building_Bed == null)
+                        {
+                            Messages.Message("CannotCapture".Translate() + ": " + "NoPrisonerBed".Translate(), victim, MessageTypeDefOf.RejectInput, false);
+                            return;
+                        }
+                        Job job = JobMaker.MakeJob(JobDefOf.Capture, victim, building_Bed);
+                        job.count = 1;
+                        pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+                        PlayerKnowledgeDatabase.KnowledgeDemonstrated(ConceptDefOf.Capturing, KnowledgeAmount.Total);
+                        if (victim.Faction != null && victim.Faction != Faction.OfPlayer && !victim.Faction.def.hidden && !victim.Faction.HostileTo(Faction.OfPlayer) && !victim.IsPrisonerOfColony)
+                        {
+                            Messages.Message("MessageCapturingWillAngerFaction".Translate(victim.Named("PAWN"))
+                                .AdjustedFor(victim, "PAWN", true), victim, MessageTypeDefOf.CautionInput, false);
                         }
                     }, MenuOptionPriority.RescueOrCapture, null, victim, 0f, null, null), pawn, victim, "ReservedBy");
                 return floatOption;
             }
 
-            public static FloatMenuOption addRescueOption(Pawn pawn, Pawn victim)
+            public static FloatMenuOption AddRescueOption(Pawn pawn, Pawn victim)
             {
                 var floatOption = FloatMenuUtility.DecoratePrioritizedTask(new FloatMenuOption("Rescue".Translate
                     (victim.LabelCap, victim), delegate ()
@@ -221,7 +222,7 @@ namespace ZLevels
                             var oldPosition1 = pawn.Position;
                             var oldPosition2 = victim.Position;
                             var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
-                            foreach (var otherMap in ZTracker.GetAllMaps(pawn.Map.Tile))
+                            foreach (var otherMap in ZTracker.GetAllMapsInClosestOrder(pawn.Map))
                             {
                                 if (oldMap != otherMap)
                                 {
@@ -307,6 +308,75 @@ namespace ZLevels
                 return floatOption;
             }
         }
+
+        //[HarmonyPatch(typeof(FloatMenuMakerMap))]
+        //[HarmonyPatch("TryMakeFloatMenu")]
+        //public class TryMakeFloatMenu_Transpiler
+        //{
+        //    static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        //    {
+        //        var foundCurrentMapMethod = false;
+        //        int startIndex = -1, endIndex = -1;
+        //
+        //        var codes = new List<CodeInstruction>(instructions);
+        //        for (int i = 0; i < codes.Count; i++)
+        //        {
+        //
+        //            if (codes[i].opcode == OpCodes.Ret)
+        //            {
+        //                if (foundCurrentMapMethod)
+        //                {
+        //                    Log.Error("END " + i);
+        //            
+        //                    endIndex = i; // include current 'ret'
+        //                    break;
+        //                }
+        //                else
+        //                {
+        //                    Log.Error("START " + (i + 1));
+        //            
+        //                    startIndex = i + 1; // exclude current 'ret'
+        //            
+        //                    for (int j = startIndex; j < codes.Count; j++)
+        //                    {
+        //                        if (codes[j].opcode == OpCodes.Ret)
+        //                            break;
+        //                        var strOperand = codes[j].ToString();
+        //                        if (strOperand != null)
+        //                        {
+        //                            Log.Message(strOperand);
+        //                        }
+        //                        if (strOperand != null && strOperand.Contains("CurrentMap"))
+        //                        {
+        //                            Log.Message(pawn + " - Found");
+        //                            foundCurrentMapMethod = true;
+        //                            break;
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        if (startIndex > -1 && endIndex > -1)
+        //        {
+        //            Log.Message(pawn + " - Remove");
+        //            // we cannot remove the first code of our range since some jump actually jumps to
+        //            // it, so we replace it with a no-op instead of fixing that jump (easier).
+        //            codes[startIndex].opcode = OpCodes.Nop;
+        //            codes.RemoveRange(startIndex + 1, endIndex - startIndex - 1);
+        //        }
+        //
+        //        return codes.AsEnumerable();
+        //    }
+        //}
+        //
+        //[HarmonyPatch(typeof(FloatMenuMakerMap), "ChoicesAtFor")]
+        //internal static class Patch_ChoicesAtFor
+        //{
+        //    private static void Postfix()
+        //    {
+        //        Log.Message(pawn + " - Run");
+        //    }
+        //}
     }
 }
 

@@ -25,18 +25,32 @@ namespace ZLevels
             [HarmonyPostfix]
             private static void MapBiomePostfix(Map __instance, ref BiomeDef __result)
             {
-                if (__instance.ParentHolder is MapParent_ZLevel)
+                if (__instance.ParentHolder is MapParent_ZLevel parent)
                 {
                     try
                     {
                         var ZTracker = Current.Game.GetComponent<ZLevelsManager>();
-                        if (ZTracker.GetZIndexFor(__instance) < 0)
+                        if (parent.finishedGeneration == true)
                         {
-                            __result = ZLevelsDefOf.ZL_UndegroundBiome;
+                            if (ZTracker.GetZIndexFor(__instance) < 0)
+                            {
+                                __result = ZLevelsDefOf.ZL_UndegroundBiome;
+                            }
+                            else if (ZTracker.GetZIndexFor(__instance) > 0)
+                            {
+                                __result = ZLevelsDefOf.ZL_UpperBiome;
+                            }
                         }
-                        else if (ZTracker.GetZIndexFor(__instance) > 0)
+                        else
                         {
-                            __result = ZLevelsDefOf.ZL_UpperBiome;
+                            if (parent.Z_LevelIndex < 0)
+                            {
+                                __result = ZLevelsDefOf.ZL_UndegroundBiome;
+                            }
+                            else if (parent.Z_LevelIndex > 0)
+                            {
+                                __result = ZLevelsDefOf.ZL_UpperBiome;
+                            }
                         }
                     }
                     catch (Exception ex)
